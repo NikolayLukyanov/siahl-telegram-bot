@@ -153,19 +153,33 @@ alembic downgrade -1
 
 ## Deployment
 
-### Docker
+### Docker (Local Development)
 ```bash
-# Build image
-docker build -t siahl-bot -f docker/Dockerfile .
-
-# Run with docker-compose
+# Build and run with docker-compose
 docker-compose up -d
+
+# View logs
+docker-compose logs -f bot
+
+# Stop containers
+docker-compose down
+
+# Rebuild after code changes
+docker-compose up -d --build
 ```
 
-### Railway.app
+### Railway.app (Production)
 1. Connect GitHub repository
-2. Add environment variables
-3. Deploy automatically on push to main
+2. Add PostgreSQL database service
+3. Configure environment variables:
+   - `TELEGRAM_BOT_TOKEN`
+   - `DATABASE_URL` (auto-set by Railway)
+   - `ANTHROPIC_API_KEY` (optional)
+   - `ENVIRONMENT=production`
+4. Deploy automatically on push to main
+
+### Environment Variables
+See `.env.example` for all available configuration options.
 
 ## Project Structure
 
