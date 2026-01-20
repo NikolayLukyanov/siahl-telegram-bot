@@ -26,11 +26,21 @@ async def on_startup(bot: Bot) -> None:
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"SIAHL Base URL: {settings.siahl_base_url}")
 
-    # Set bot commands
-    # TODO: Add bot commands in Phase 2
+    # Set bot commands (Phase 2)
+    from aiogram.types import BotCommand
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Set up your profile"),
+        BotCommand(command="help", description="Show available commands"),
+        BotCommand(command="myteam", description="View team statistics"),
+        BotCommand(command="nextgame", description="Get next game info"),
+        BotCommand(command="about", description="About this bot"),
+    ])
+    logger.info("Bot commands set successfully")
 
-    # Initialize database
-    # TODO: Add database initialization in Phase 2
+    # Initialize database (Phase 2)
+    from src.database.connection import init_db
+    await init_db(bot.get("db_engine"))
+    logger.info("Database initialized successfully")
 
     # Start scheduler
     # TODO: Add scheduler initialization in Phase 3
@@ -51,8 +61,11 @@ async def on_shutdown(bot: Bot) -> None:
     # Stop scheduler
     # TODO: Add scheduler shutdown in Phase 3
 
-    # Close database connections
-    # TODO: Add database cleanup in Phase 2
+    # Close database connections (Phase 2)
+    db_engine = bot.get("db_engine")
+    if db_engine:
+        await db_engine.dispose()
+        logger.info("Database connections closed")
 
     logger.info("Bot shutdown complete")
 
@@ -85,6 +98,13 @@ async def main() -> None:
 
     logger.info("Initializing bot...")
 
+    # Initialize database (Phase 2)
+    from src.database.connection import create_engine, create_session_pool
+
+    db_engine = create_engine()
+    session_pool = create_session_pool(db_engine)
+    logger.info("Database engine created")
+
     # Initialize bot
     bot = Bot(
         token=settings.telegram_bot_token,
@@ -92,6 +112,9 @@ async def main() -> None:
             parse_mode=ParseMode.HTML,
         ),
     )
+
+    # Store engine in bot workflow data for startup/shutdown
+    bot["db_engine"] = db_engine
 
     # Initialize dispatcher with FSM storage
     storage = MemoryStorage()
@@ -101,17 +124,16 @@ async def main() -> None:
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
 
-    # TODO: Register message handlers in Phase 2
-    # from src.handlers import start, team_analytics, opponent_analytics, player_stats, settings
-    # dp.include_router(start.router)
-    # dp.include_router(team_analytics.router)
-    # dp.include_router(opponent_analytics.router)
-    # dp.include_router(player_stats.router)
-    # dp.include_router(settings.router)
+    # Register message handlers (Phase 2)
+    from src.handlers import start_router, help_router, team_router
+    dp.include_router(start_router)
+    dp.include_router(help_router)
+    dp.include_router(team_router)
 
-    # TODO: Register middleware in Phase 2
-    # from src.middleware import logging_middleware, group_filter
-    # dp.update.middleware(logging_middleware.LoggingMiddleware())
+    # Register middleware (Phase 2)
+    from src.middleware import DatabaseMiddleware
+    dp.update.middleware(DatabaseMiddleware(session_pool=session_pool))
+    logger.info("Middleware registered")
 
     try:
         logger.info("Starting bot polling...")

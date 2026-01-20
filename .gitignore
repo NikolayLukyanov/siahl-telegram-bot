@@ -79,6 +79,4 @@ temp/
 *.jpeg
 charts/
 
-# Alembic
-alembic/versions/*.py
-!alembic/versions/__init__.py
+# Alembic - Keep migration files in version control!
