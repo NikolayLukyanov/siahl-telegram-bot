@@ -1,6 +1,9 @@
 @echo off
 REM Quick start script for local development on Windows
 
+REM Set database password environment variable
+set DB_PASSWORD=changeme
+
 echo ======================================
 echo SIAHL Telegram Bot - Local Development
 echo ======================================
