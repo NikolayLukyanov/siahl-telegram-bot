@@ -15,12 +15,13 @@ from loguru import logger
 from src.config import settings
 
 
-async def on_startup(bot: Bot) -> None:
+async def on_startup(bot: Bot, db_engine) -> None:
     """
     Execute on bot startup.
 
     Args:
         bot: Bot instance
+        db_engine: Database engine from workflow data
     """
     logger.info("Bot is starting up...")
     logger.info(f"Environment: {settings.environment}")
@@ -39,7 +40,7 @@ async def on_startup(bot: Bot) -> None:
 
     # Initialize database (Phase 2)
     from src.database.connection import init_db
-    await init_db(bot.get("db_engine"))
+    await init_db(db_engine)
     logger.info("Database initialized successfully")
 
     # Start scheduler
@@ -49,12 +50,13 @@ async def on_startup(bot: Bot) -> None:
     logger.info(f"Bot started as @{me.username} (ID: {me.id})")
 
 
-async def on_shutdown(bot: Bot) -> None:
+async def on_shutdown(bot: Bot, db_engine) -> None:
     """
     Execute on bot shutdown.
 
     Args:
         bot: Bot instance
+        db_engine: Database engine from workflow data
     """
     logger.info("Bot is shutting down...")
 
@@ -62,7 +64,6 @@ async def on_shutdown(bot: Bot) -> None:
     # TODO: Add scheduler shutdown in Phase 3
 
     # Close database connections (Phase 2)
-    db_engine = bot.get("db_engine")
     if db_engine:
         await db_engine.dispose()
         logger.info("Database connections closed")
@@ -87,14 +88,15 @@ async def main() -> None:
         level=settings.log_level,
     )
 
-    if settings.log_file:
-        logger.add(
-            settings.log_file,
-            rotation="10 MB",
-            retention="1 week",
-            format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-            level=settings.log_level,
-        )
+    # Optional file logging (disabled for now)
+    # if hasattr(settings, 'log_file') and settings.log_file:
+    #     logger.add(
+    #         settings.log_file,
+    #         rotation="10 MB",
+    #         retention="1 week",
+    #         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+    #         level=settings.log_level,
+    #     )
 
     logger.info("Initializing bot...")
 
@@ -113,12 +115,12 @@ async def main() -> None:
         ),
     )
 
-    # Store engine in bot workflow data for startup/shutdown
-    bot["db_engine"] = db_engine
-
     # Initialize dispatcher with FSM storage
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
+
+    # Store engine in dispatcher workflow data for startup/shutdown
+    dp.workflow_data.update(db_engine=db_engine)
 
     # Register startup/shutdown handlers
     dp.startup.register(on_startup)
