@@ -62,14 +62,10 @@ async def cmd_myteam(message: Message, session: AsyncSession):
     await message.answer("🔍 Fetching team statistics...", parse_mode="HTML")
 
     try:
-        scraper = TeamScraper(
-            base_url=settings.siahl_base_url,
-            league_id=settings.default_league_id,
-            season=settings.current_season
-        )
+        scraper = TeamScraper()
 
         # Get team stats
-        teams_data = await scraper.scrape_teams()
+        teams_data = await scraper.get_all_teams()
         team_info = next(
             (t for t in teams_data if t["team_id"] == primary_team.team_id),
             None
@@ -256,13 +252,9 @@ async def cmd_nextgame(message: Message, session: AsyncSession):
         # Fetch schedule
         from src.services.scraper.schedule_scraper import ScheduleScraper
 
-        scraper = ScheduleScraper(
-            base_url=settings.siahl_base_url,
-            league_id=settings.default_league_id,
-            season=settings.current_season
-        )
+        scraper = ScheduleScraper()
 
-        games = await scraper.scrape_schedule(team_id=primary_team.team_id)
+        games = await scraper.get_team_schedule(team_id=primary_team.team_id)
 
         # Find next upcoming game
         from datetime import datetime

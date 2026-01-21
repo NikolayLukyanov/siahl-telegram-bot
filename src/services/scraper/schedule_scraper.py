@@ -20,7 +20,7 @@ class ScheduleScraper(BaseScraper):
 
     def __init__(self) -> None:
         """Initialize schedule scraper with SIAHL base URL."""
-        super().__init__(base_url=settings.siahl_base_url)
+        super().__init__()
 
     async def get_team_schedule(
         self,

@@ -19,7 +19,7 @@ class TeamScraper(BaseScraper):
 
     def __init__(self) -> None:
         """Initialize team scraper with SIAHL base URL."""
-        super().__init__(base_url=settings.siahl_base_url)
+        super().__init__()
 
     async def get_all_teams(
         self,
@@ -69,24 +69,27 @@ class TeamScraper(BaseScraper):
             soup = BeautifulSoup(html, "lxml")
 
             teams = []
-            current_division = None
 
-            # Parse page sequentially: h1/h2 headers followed by tables
-            for element in soup.find_all(["h1", "h2", "table"]):
-                if element.name in ["h1", "h2"]:
-                    # Extract division name
-                    current_division = element.get_text(strip=True)
-                    logger.debug(f"Found division: {current_division}")
+            # Find all tables (standings tables)
+            tables = soup.find_all("table")
+            logger.debug(f"Found {len(tables)} tables on page")
 
-                elif element.name == "table" and current_division:
-                    # Parse team standings table
+            for table in tables:
+                # Look for division name before the table
+                # Try to find text containing "Division" in elements before this table
+                division = self._find_division_name(table)
+
+                if division:
+                    logger.debug(f"Found division: {division}")
                     division_teams = self._parse_standings_table(
-                        element,
-                        division=current_division,
+                        table,
+                        division=division,
                         league_id=league_id,
                         season=season,
                     )
                     teams.extend(division_teams)
+                else:
+                    logger.warning(f"Could not find division name for table")
 
             logger.info(f"Successfully scraped {len(teams)} teams from {len(set(t['division'] for t in teams))} divisions")
             return teams
@@ -94,6 +97,51 @@ class TeamScraper(BaseScraper):
         except Exception as e:
             logger.error(f"Failed to scrape teams: {e}")
             raise
+
+    def _find_division_name(self, table: Tag) -> Optional[str]:
+        """
+        Find the division name for a table by looking at preceding elements.
+
+        Args:
+            table: BeautifulSoup table element
+
+        Returns:
+            Division name string, or None if not found
+        """
+        # Look at previous siblings for text containing "Division"
+        current = table.previous_sibling
+
+        # Search up to 10 previous siblings
+        for _ in range(10):
+            if current is None:
+                break
+
+            # Check if this element has text containing "Division"
+            if hasattr(current, 'get_text'):
+                text = current.get_text(strip=True)
+                if text and "Division" in text:
+                    logger.debug(f"Found division in previous sibling: {text}")
+                    return text
+
+            current = current.previous_sibling
+
+        # If not found in siblings, try looking at parent's previous siblings
+        parent = table.parent
+        if parent:
+            current = parent.previous_sibling
+            for _ in range(5):
+                if current is None:
+                    break
+
+                if hasattr(current, 'get_text'):
+                    text = current.get_text(strip=True)
+                    if text and "Division" in text:
+                        logger.debug(f"Found division in parent's sibling: {text}")
+                        return text
+
+                current = current.previous_sibling
+
+        return None
 
     def _parse_standings_table(
         self,

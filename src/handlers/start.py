@@ -27,8 +27,11 @@ async def cmd_start(message: Message, state: FSMContext, session: AsyncSession):
 
     # Check if user already exists
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     result = await session.execute(
-        select(User).filter(User.telegram_id == telegram_id)
+        select(User)
+        .filter(User.telegram_id == telegram_id)
+        .options(selectinload(User.player_profiles))
     )
     user = result.scalar_one_or_none()
 
@@ -82,13 +85,9 @@ async def process_player_name(message: Message, state: FSMContext, session: Asyn
 
     try:
         # Fetch teams from SIAHL
-        scraper = TeamScraper(
-            base_url=settings.siahl_base_url,
-            league_id=settings.default_league_id,
-            season=settings.current_season
-        )
+        scraper = TeamScraper()
 
-        teams_data = await scraper.scrape_teams()
+        teams_data = await scraper.get_all_teams()
 
         if not teams_data:
             await message.answer(
